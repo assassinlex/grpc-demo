@@ -1,0 +1,17 @@
+syntax = "proto3";
+package auth.v1;
+option go_package="cool_car/auth/api/v1/pb;authPb";
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    string access_token = 1;
+    int32 expires_in = 2;
+}
+
+service AuthService {
+    rpc Login (LoginRequest) returns (LoginResponse);
+}
