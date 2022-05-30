@@ -4,9 +4,9 @@ import (
 	authPb "cool_car/auth/api/v1/pb"
 	auth "cool_car/auth/service"
 	"cool_car/auth/service/token"
+	server "cool_car/shared/server"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"time"
 
@@ -19,15 +19,9 @@ import (
 
 func main() {
 	// 日志
-	logger, err := zap.NewDevelopment()
+	logger, err := server.NewLogger()
 	if err != nil {
 		log.Fatalf("create logger failed: %v", err)
-	}
-
-	// 监听
-	lis, err := net.Listen("tcp", ":6666")
-	if err != nil {
-		logger.Fatal("create listener failed: ", zap.Error(err))
 	}
 
 	// 读取签名私钥
@@ -44,16 +38,20 @@ func main() {
 		logger.Fatal("无法解析私钥文件: ", zap.Error(err))
 	}
 
-	// 注册 grpc 服务
-	server := grpc.NewServer()
-	authPb.RegisterAuthServiceServer(server, &auth.Service{
-		Logger:         logger,
-		TokenExpire:    2 * time.Hour,
-		TokenGenerator: token.NewJwtTokenGenerator("cool_cat/auth", privateKey),
+	err = server.RunGRPCServer(&server.GRPCConfig{
+		Name:              "auth",
+		Addr:              ":6666",
+		AuthPublicKeyFile: "",
+		RegisterFunc: func(server *grpc.Server) {
+			authPb.RegisterAuthServiceServer(server, &auth.Service{
+				Logger:         logger,
+				TokenExpire:    2 * time.Hour,
+				TokenGenerator: token.NewJwtTokenGenerator("cool_cat/auth", privateKey),
+			})
+		},
+		Logger: logger,
 	})
 
-	// 启动服务
-	err = server.Serve(lis)
 	if err != nil {
 		logger.Fatal("server start failed: ", zap.Error(err))
 	}
